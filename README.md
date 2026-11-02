@@ -1,4 +1,4 @@
-# 基于 ESP32 与 NimBLE 的 Xbox 无线手柄驱动及 BLE 通信框架
+# 🎮 基于 ESP32 与 NimBLE 的 Xbox 无线手柄驱动及 BLE 通信框架
 
 ## 📖 项目简介
 这是一个基于 ESP32 与 Apache NimBLE 开发的 Xbox 无线手柄 BLE 驱动框架，提供手柄按键与摇杆输入解析、四通道独立振动控制、设备配对绑定及自动回连等功能。
