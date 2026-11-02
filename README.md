@@ -100,3 +100,24 @@ Component config
 - `xbox_controller`：驱动协议核心采用纯标准 C 语言实现，不直接依赖 ESP-IDF 和 FreeRTOS，可作为独立模块移植。
 - `main`：根据实际应用需求实现初始化、事件回调及业务控制逻辑。
 
+---
+
+## 附录：Xbox 无线手柄 BLE 协议技术文档 (实测标定版)
+
+### 表格一、 GATT 服务与特征参数表
+
+| 服务 | 类型 | UUID | 实测 Handle | 参数 | 通信方向 | 传输权限 | 职能说明 |
+|---|---|---|---:|---|---|---|---|
+| HID | Service | `0x1812` | `22–35` | — | — | — | HID 服务范围 |
+| HID | Characteristic | `0x2A4C` | `26` | `写入0x01` | ESP32 → 手柄 | Write | 手柄激活唤醒 |
+| HID | Characteristic | `0x2A4D` | `30` | 16 Bytes | 手柄 → ESP32 | Read / Notify | 按键输入数据通道 |
+| HID | Descriptor | `0x2902` | `31` | `写入0x0001` | ESP32 → 手柄 | Write | 按键订阅开关 |
+| HID | Characteristic | `0x2A4D` | `34` | 8 Bytes | ESP32 → 手柄 | Write Without Response | 马达震动控制 |
+| Battery | Service | `0x180F` | — | — | — | — | 电池服务 |
+| Battery | Characteristic | `0x2A19` | `20` | 0–100 | 手柄 → ESP32 | Read / Notify | 电池电量信息 |
+| Battery | Descriptor | `0x2902` | `21` | `写入0x0001` | ESP32 → 手柄 | Write | 电量订阅开关 |
+| Device Information | Service | `0x180A` | — | — | — | — | 设备信息服务 |
+| Device Information | Characteristic | `0x2A29` | 未记录 | 字符串 | 手柄 → ESP32 | Read | 厂商名称 |
+| Device Information | Characteristic | `0x2A50` | 未记录 | PnP ID | 手柄 → ESP32 | Read | 厂商 ID、产品 ID、产品版本 |
+| Device Information | Characteristic | `0x2A26` | `15` | 字符串 | 手柄 → ESP32 | Read | 固件版本 |
+| Device Information | Characteristic | `0x2A25` | `17` | 字符串 | 手柄 → ESP32 | Read | 设备序列号 |
