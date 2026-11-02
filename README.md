@@ -121,3 +121,22 @@ Component config
 | Device Information | Characteristic | `0x2A50` | 未记录 | PnP ID | 手柄 → ESP32 | Read | 厂商 ID、产品 ID、产品版本 |
 | Device Information | Characteristic | `0x2A26` | `15` | 字符串 | 手柄 → ESP32 | Read | 固件版本 |
 | Device Information | Characteristic | `0x2A25` | `17` | 字符串 | 手柄 → ESP32 | Read | 设备序列号 |
+
+### 表格二、 HID Input Report 输入报文映射表
+
+输入报文 UUID：`0x2A4D`  
+数据长度：`16 Bytes`  
+通信方向：Xbox 手柄 → ESP32（Notification）
+
+| 字节偏移 | 控制部件 | 数据格式 | 位定义 / 编码 | 解析结果 |
+|---|---|---|---|---|
+| Byte 0–1 | 左摇杆 X 轴 | 16 位无符号小端 | `uint16_t`，中心值约 `32768` | `-32768 ~ 32767` |
+| Byte 2–3 | 左摇杆 Y 轴 | 16 位无符号小端 | `uint16_t`，中心值约 `32768` | `-32768 ~ 32767` |
+| Byte 4–5 | 右摇杆 X 轴 | 16 位无符号小端 | `uint16_t`，中心值约 `32768` | `-32768 ~ 32767` |
+| Byte 6–7 | 右摇杆 Y 轴 | 16 位无符号小端 | `uint16_t`，中心值约 `32768` | `-32768 ~ 32767` |
+| Byte 8–9 | 左模拟扳机（LT） | 10 位模拟量 | `0 ~ 1023` | `0 ~ 1023` |
+| Byte 10–11 | 右模拟扳机（RT） | 10 位模拟量 | `0 ~ 1023` | `0 ~ 1023` |
+| Byte 12 | 十字方向键（D-Pad） | 8 向帽开关 | `0`：释放；`1–8`：顺时针方向编码 | 上、右上、右、右下、下、左下、左、左上 |
+| Byte 13 | 核心动作按键 | 8 位位掩码 | `Bit0=A`、`Bit1=B`、`Bit3=X`、`Bit4=Y`、`Bit6=LB`、`Bit7=RB` | A、B、X、Y、LB、RB 按键状态 |
+| Byte 14 | 系统辅助按键 1 | 8 位位掩码 | `Bit2=View`、`Bit3=Menu`、`Bit4=Xbox`、`Bit5=L3`、`Bit6=R3` | View、Menu、Xbox、L3、R3 按键状态 |
+| Byte 15 | 系统辅助按键 2 | 8 位位掩码 | `Bit0=Share` | Share 按键状态 |
