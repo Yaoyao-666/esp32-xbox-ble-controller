@@ -13,7 +13,7 @@ static const char *TAG = "APP_MAIN";
 // 首次配对时匹配的蓝牙广播名称
 #define XBOX_TARGET_DEVICE_NAME "Xbox Wireless Controller"
 
-// 上层业务与蓝牙胶水层全局状态结构体
+// 主应用运行上下文与属性句柄缓存结构体
 typedef struct
 {
     /* 物理链路连接状态 */
@@ -44,7 +44,7 @@ static main_application_context_t s_application_context;
 
 /**
  * @brief 手柄驱动向底层发包的回调接口
- * @note 负责通过蓝牙把 8 字节震动包打出去。
+ * @note 负责通过蓝牙把 8 字节震动包发出。
  */
 static int xbox_transport_ble_send(const uint8_t *data, uint16_t length, void *user_context)
 {
@@ -77,6 +77,7 @@ static void on_xbox_controller_event(xbox_controller_event_t event,
     switch (event)
     {
     case XBOX_CONTROLLER_EVENT_CONNECTED:
+
         // 连接成功后触发手柄震动
         ESP_LOGW(TAG, "手柄连接成功！");
         xbox_controller_pulse_custom_vibration(0, 0, 40, 40, 50, 0, 0);
@@ -95,7 +96,7 @@ static void on_xbox_controller_event(xbox_controller_event_t event,
         if (current_state == NULL)
             break;
 
-        /* 1. 静态记忆变量：消抖防刷屏 */
+        /* 1. 静态记忆变量：防刷屏 */
         static int16_t s_last_lx = 0, s_last_ly = 0, s_last_rx = 0, s_last_ry = 0;
         static uint16_t s_last_lt = 0, s_last_rt = 0;
         static xbox_controller_buttons_t s_last_buttons = {0};
@@ -103,7 +104,7 @@ static void on_xbox_controller_event(xbox_controller_event_t event,
         static uint8_t s_last_sent_lt_intensity = 0, s_last_sent_rt_intensity = 0;
 
         /* ==================================================================== */
-        /*  特殊功能：按下西瓜键 (Xbox 键) 呼出手柄状态仪表盘                     */
+        /*  特殊功能：按下西瓜键 (Xbox 键) 触发手柄状态仪表盘                     */
         /* ==================================================================== */
         if (current_state->buttons.button_xbox && !s_last_buttons.button_xbox)
         {
@@ -133,7 +134,7 @@ static void on_xbox_controller_event(xbox_controller_event_t event,
 #endif
             ESP_LOGI("DASHBOARD", "============================================================");
 
-            // 按下西瓜键时，机身轻震 100ms (10个单位) 提示呼出成功！
+            // 按下西瓜键时，扳机震 500ms 提示触发成功
             xbox_controller_pulse_custom_vibration(0, 0, 40, 40, 50, 0, 0);
         }
 
@@ -392,7 +393,7 @@ static void on_ble_manager_event(ble_manager_event_t event,
 
         bool is_match = false;
 
-        // 分支 A: 如果有绑定记忆，专等 MAC 地址匹配 (开机秒连)
+        // 分支 A: 如果有绑定记忆，专等 MAC 地址匹配 (开机回连)
         if (s_application_context.has_bonded_target)
         {
             if (memcmp(device->address, s_application_context.bonded_target_address, 6) == 0)
@@ -412,7 +413,6 @@ static void on_ble_manager_event(ble_manager_event_t event,
         {
             s_application_context.is_connecting = true;
             ble_manager_central_stop_scanning();
-            // vTaskDelay(pdMS_TO_TICKS(50)); // 留给底层停止扫描的处理时间
 
             esp_err_t connect_err = ble_manager_central_connect(device->address, device->address_type);
             if (connect_err != ESP_OK)
@@ -464,6 +464,7 @@ static void on_ble_manager_event(ble_manager_event_t event,
             {
                 s_application_context.hid_control_point_handle = characteristic->value_handle;
             }
+
             // 抓取按键输入通道 (句柄 30，UUID 0x2A4D，具备 Notify 0x10 权限)
             else if (characteristic->uuid.value.uuid16 == BLE_CHAR_HID_REPORT_UUID16 &&
                      (characteristic->properties & 0x10) &&
@@ -471,6 +472,7 @@ static void on_ble_manager_event(ble_manager_event_t event,
             {
                 s_application_context.input_report_value_handle = characteristic->value_handle;
             }
+
             // 抓取马达震动输出通道 (句柄 34，UUID 0x2A4D，具备 Write 0x04 权限)
             else if (characteristic->uuid.value.uuid16 == BLE_CHAR_HID_REPORT_UUID16 &&
                      (characteristic->properties & 0x04))
@@ -482,6 +484,7 @@ static void on_ble_manager_event(ble_manager_event_t event,
     }
 
     case BLE_MANAGER_EVENT_CHARACTERISTIC_DISCOVERY_COMPLETED:
+
         // 第三步：特征值全找到时，立刻触发底层链路加密配对 (Xbox不加密无法控制)
         ble_manager_central_start_security(connection_handle);
         break;
@@ -541,7 +544,8 @@ static void on_ble_manager_event(ble_manager_event_t event,
     }
 
     case BLE_MANAGER_EVENT_DESCRIPTOR_DISCOVERY_COMPLETED:
-        // 第五步：写入 CCCD (0x0001)，开启按键数据实时推送！
+
+        // 第五步：写入 CCCD (0x0001)，开启按键数据实时推送
         ble_manager_central_subscribe(connection_handle, s_application_context.input_cccd_handle, true);
         break;
 
@@ -554,7 +558,7 @@ static void on_ble_manager_event(ble_manager_event_t event,
             {
                 /*
                  * 向 HID Control Point (句柄 26) 写入 0x01 (Exit Suspend 退出休眠)，
-                 * 手柄硬件正式唤醒，按键引擎全面激活！
+                 * 手柄硬件正式唤醒，按键激活
                  */
                 uint8_t exit_suspend_command = XBOX_COMMAND_EXIT_SUSPEND;
                 ble_manager_central_write(connection_handle,
@@ -678,7 +682,7 @@ static void on_ble_manager_event(ble_manager_event_t event,
 
     case BLE_MANAGER_EVENT_ERROR:
     {
-        /* 1. 安全解包错误码 */
+        /* 1. 解包错误码 */
         int err = (event_data != NULL) ? *(int *)event_data : -1;
         ESP_LOGE(TAG, "BLE Manager Error occurred! Code: %d (0x%04x)", err, err);
 
